@@ -48,7 +48,7 @@ module Function_Unit #(
   logic [WIDTH-1:0] H;
   logic V_s, C_s, N_s, Z_s;
   Shifter #(.WIDTH(WIDTH)) u_shf (
-    .S_SHF(S_SHF), .B(B), .H(H),
+    .S_SHF(S_SHF), .B(A), .H(H),
     .V_s(V_s), .C_s(C_s), .N_s(N_s), .Z_s(Z_s)
   );
 

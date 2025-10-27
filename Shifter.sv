@@ -48,9 +48,10 @@ module Shifter #(
 
   always_comb begin
     unique case (S_SHF)
-      2'b00  : H = B;         // pass-through
-      ShiftL : H = B << 1;    // logical left shift
-      ShiftR : H = B >> 1;    // logical right shift
+      2'b00  : H = B;                 // pass-through
+      ShiftL : H = B << 1;            // logical left shift
+      ShiftR : H = B >> 1;            // logical right shift
+      2'b11  : H = $signed(B) >>> 1;  // arithmetic right shift
       default: H = 'x;
     endcase
   end
@@ -62,8 +63,7 @@ module Shifter #(
   //   - for ShiftR: C = H[0]
   //   - for pass-through: C = 0
   assign V_s = 1'b0;
-  assign C_s = (S_SHF == ShiftL) ? H[WIDTH-1] :
-               (S_SHF == ShiftR) ? H[0]       : 1'b0;
+  assign C_s = 1'b0;
   assign N_s = H[WIDTH-1];
   assign Z_s = ~|H;
 
