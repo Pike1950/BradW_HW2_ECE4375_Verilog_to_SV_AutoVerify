@@ -12,6 +12,14 @@
 `timescale 1ns/1ps
 
 module Function_Unit_TB;
+  // ---- VCD dump ----
+  initial begin
+    $dumpfile("Function_Unit_TB.vcd");
+    $dumpvars(0, Function_Unit_TB);
+    $display("[%0t] VCD dumping to Function_Unit_TB.vcd", $time);
+  end
+
+
 
   // ----------------------------
   // DUT I/O
@@ -213,17 +221,50 @@ module Function_Unit_TB;
     z_out = (f_out == 16'h0000);
   endfunction
 
+  // golden shifter model (operates on A, flags: V=0 C=0 N=MSB(F) Z=(F==0))
+  function automatic void golden_shifter(
+    input  logic [15:0] a,
+    input  logic [1:0]  s_shf,
+    output logic [15:0] f_out,
+    output logic        v_out,
+    output logic        c_out,
+    output logic        n_out,
+    output logic        z_out
+  );
+    logic signed [15:0] as;
+    as = a;
+    unique case (s_shf)
+      2'b00: f_out = a;
+      2'b01: f_out = a << 1;
+      2'b10: f_out = a >> 1;
+      2'b11: f_out = as >>> 1;
+      default: f_out = '0;
+    endcase
+    v_out = 1'b0;
+    c_out = 1'b0;
+    n_out = f_out[15];
+    z_out = (f_out == 16'h0000);
+  endfunction
+
+
   // compare pack
   typedef struct packed { logic [15:0] f; logic v,c,n,z; } exp_t;
   exp_t exp_q;
 
   task automatic compute_expected(input string tag);
     logic [15:0] gf; logic gv,gc,gn,gz;
-    golden_alu(A,B,S_ALU,CIN,gf,gv,gc,gn,gz);
+    if (MF_SEL) begin
+      // Shifter path expected values (A operand)
+      golden_shifter(A,S_SHF,gf,gv,gc,gn,gz);
+    end else begin
+      // ALU path expected values
+      golden_alu(A,B,S_ALU,CIN,gf,gv,gc,gn,gz);
+    end
     exp_q.f = gf; exp_q.v = gv; exp_q.c = gc; exp_q.n = gn; exp_q.z = gz;
     expF = {16'h0000,gf}; expV=gv; expC=gc; expN=gn; expZ=gz;
     $display("[%0t] Computing expected for %s", $time, tag);
   endtask
+
 
   // Compare every other cycle (when sampleTick==1)
   always_ff @(posedge clk or negedge rst_n) begin
