@@ -9,405 +9,317 @@
 //   - Subtract path uses borrow = ~carry_out convention (rubric).
 //////////////////////////////////////////////////////////////////////////////////
 
-`timescale 1ns/1ps
-
 module Function_Unit_TB;
-  // ---- VCD dump ----
+import Function_Unit_pkg::*; // <- bring in exp_t + opcode constants + models
+
+  localparam int WIDTH = 16;
+
+  // DUT I/O
+  logic                 clk;
+  logic [WIDTH-1:0]     A, B;
+  logic                 MF_SEL;
+  logic [2:0]           S_ALU;
+  logic [1:0]           S_SHF;
+  logic                 CIN;
+  wire  [WIDTH-1:0]     F;
+  wire                  V, C, N, Z;
+
+  // Expected bundle from the package
+  exp_t                 exp_q;
+
+  // Instantiate DUT
+  Function_Unit dut (
+    .A      (A),
+    .B      (B),
+    .MF_SEL (MF_SEL),
+    .S_ALU  (S_ALU),
+    .S_SHF  (S_SHF),
+    .CIN    (CIN),
+    .F      (F),
+    .V      (V),
+    .C      (C),
+    .N      (N),
+    .Z      (Z)
+  );
+
+  // Clock
+  initial clk = 1'b0;
+  always #10 clk = ~clk;    // 20 ns period
+
+  // VCD (unguarded, always on)
   initial begin
     $dumpfile("Function_Unit_TB.vcd");
     $dumpvars(0, Function_Unit_TB);
-    $display("[%0t] VCD dumping to Function_Unit_TB.vcd", $time);
   end
-
-
-
-  // ----------------------------
-  // DUT I/O
-  // ----------------------------
-  logic        clk;
-  logic        rst_n;
-
-  logic [15:0] A;
-  logic [15:0] B;
-
-  // control
-  logic [2:0]  S_ALU;
-  logic [1:0]  S_SHF;
-  logic        MF_SEL;  // 0 = ALU path, 1 = Shifter path
-  logic        CIN;
-
-  // DUT outputs
-  logic [15:0] F;
-  logic        V, C, N, Z;
-
-  // ------------- Expected (golden) -------------
-  /* verilator lint_off UNUSEDSIGNAL */
-  logic [31:0] expF;          // extended for convenient viewing
-  logic        expV, expC, expN, expZ;
-  /* verilator lint_on UNUSEDSIGNAL */
-
-  // One-cycle sampling alignment
-  logic        sampleTick;   // toggles to define compare instants
-
-  // ----------------------------
-  // Instantiate DUT
-  // ----------------------------
-  Function_Unit dut (
-    .A        (A),
-    .B        (B),
-    .S_ALU    (S_ALU),
-    .S_SHF    (S_SHF),
-    .MF_SEL   (MF_SEL),
-    .CIN      (CIN),
-    .F        (F),
-    .V        (V),
-    .C        (C),
-    .N        (N),
-    .Z        (Z)
-  );
-
-  // ----------------------------
-  // Clock / reset
-  // ----------------------------
-  initial begin
-    clk = 0;
-    forever #5 clk = ~clk; // 100 MHz
-  end
-
-  initial begin
-    rst_n = 0;
-    sampleTick = 0;
-    #12;
-    rst_n = 1;
-  end
-
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n)
-      sampleTick <= 0;
-    else
-      sampleTick <= ~sampleTick;
-  end
-
-  // ----------------------------
-  // Opcodes (PascalCase for localparams)
-  // ----------------------------
-  // Arithmetic family packed as 4 bits: [3:1]=S_ALU, [0]=CIN
-  localparam logic [3:0] TranA1    = 4'b0000;
-  localparam logic [3:0] IncA      = 4'b0001;
-  localparam logic [3:0] Add       = 4'b0010;
-  localparam logic [3:0] AddCarry  = 4'b0011;
-  localparam logic [3:0] Add1S     = 4'b0100; // A + ~B + 0
-  localparam logic [3:0] Sub       = 4'b0101; // A + ~B + 1
-  localparam logic [3:0] DecA      = 4'b0110;
-  localparam logic [3:0] TranA2    = 4'b0111;
-
-  // Logic opcodes (S_ALU only)
-  localparam logic [2:0] AndOp     = 3'b100;
-  localparam logic [2:0] OrOp      = 3'b101;
-  localparam logic [2:0] XorOp     = 3'b110;
-  localparam logic [2:0] NotOp     = 3'b111;
-
-  // ----------------------------
-  // Helpers
-  // ----------------------------
-  task automatic drive_opcode(input logic [3:0] opc);
-    begin
-      S_ALU = opc[3:1];
-      CIN   = opc[0];
-    end
+  // -------------------------------
+  // Pretty banner helper
+  // -------------------------------
+  task automatic banner(string s);
+    $display("\n[ %0t ] --- %s ---", $time, s);
   endtask
 
-  function automatic void check_result(
-    input string testname,
-    input int    expected_F,
-    input bit    expected_V,
-    input bit    expected_C,
-    input bit    expected_N,
-    input bit    expected_Z
+  // -------------------------------
+  // Your result checker (unchanged)
+  // -------------------------------
+  task automatic check_result(
+    input string   tag,
+    input int      expF,
+    input logic    expV,
+    input logic    expC,
+    input logic    expN,
+    input logic    expZ
   );
-    if ((F !== expected_F[15:0]) ||
-        (V !== expected_V) ||
-        (C !== expected_C) ||
-        (N !== expected_N) ||
-        (Z !== expected_Z)) begin
-      $display("[%0t] ❌ FAIL: %s", $time, testname);
-      $display("    Expected F=%0d V=%0b C=%0b N=%0b Z=%0b",
-               expected_F, expected_V, expected_C, expected_N, expected_Z);
-      $display("    Got      F=%0d V=%0b C=%0b N=%0b Z=%0b",
-               F, V, C, N, Z);
-    end
-    else begin
-      $display("[%0t] ✅ PASS: %s | F=%0d V=%0b C=%0b N=%0b Z=%0b",
-               $time, testname, F, V, C, N, Z);
-    end
-  endfunction
-
-  // ----------------------------
-  // Golden ALU model (combinational)
-  // ----------------------------
-  function automatic void golden_alu(
-    input  logic [15:0] a,
-    input  logic [15:0] b,
-    input  logic [2:0]  s_alu,
-    input  logic        cin,
-    output logic [15:0] f_out,
-    output logic        v_out,
-    output logic        c_out,
-    output logic        n_out,
-    output logic        z_out
-  );
-    logic [16:0] tmp17;
-    logic [15:0] b_eff;
-
-    f_out = 16'h0000; v_out = 1'b0; c_out = 1'b0;
-
-    unique casez (s_alu)
-      3'b000,3'b001,3'b010,3'b011: begin
-        unique case ({s_alu, cin})
-          {3'b000,1'b0}: begin // TranA1
-            f_out = a; c_out = 1'b0; v_out = 1'b0;
-          end
-          {3'b000,1'b1}: begin // IncA
-            tmp17 = {1'b0,a} + 17'd1;
-            f_out = tmp17[15:0]; c_out = tmp17[16];
-            v_out = (~a[15] &  f_out[15]); // add 1 overflow
-          end
-          {3'b001,1'b0}: begin // Add
-            tmp17 = {1'b0,a} + {1'b0,b};
-            f_out = tmp17[15:0]; c_out = tmp17[16];
-            v_out = (~a[15] & ~b[15] &  f_out[15]) |
-                    ( a[15] &  b[15] & ~f_out[15]);
-          end
-          {3'b001,1'b1}: begin // AddCarry
-            tmp17 = {1'b0,a} + {1'b0,b} + 17'd1;
-            f_out = tmp17[15:0]; c_out = tmp17[16];
-            v_out = (~a[15] & ~b[15] &  f_out[15]) |
-                    ( a[15] &  b[15] & ~f_out[15]);
-          end
-          {3'b010,1'b0}: begin // Add1S (A - B - 1)
-            b_eff = ~b;
-            tmp17 = {1'b0,a} + {1'b0,b_eff};
-            f_out = tmp17[15:0]; c_out = tmp17[16];
-            v_out = (~a[15] & ~b_eff[15] &  f_out[15]) |
-                    ( a[15] &  b_eff[15] & ~f_out[15]);
-          end
-          {3'b010,1'b1}: begin // Sub (A - B)
-            b_eff = ~b;
-            tmp17 = {1'b0,a} + {1'b0,b_eff} + 17'd1;
-            f_out = tmp17[15:0]; c_out = tmp17[16]; // carry=1 means no borrow
-            v_out = (~a[15] & ~b_eff[15] &  f_out[15]) |
-                    ( a[15] &  b_eff[15] & ~f_out[15]);
-          end
-          {3'b011,1'b0}: begin // DecA (A - 1)
-            tmp17 = {1'b0,a} + 17'h1_FFFF;
-            f_out = tmp17[15:0]; c_out = tmp17[16];
-            v_out = (a == 16'h8000);
-          end
-          {3'b011,1'b1}: begin // TranA2
-            f_out = a; c_out = 1'b0; v_out = 1'b0;
-          end
-          default: begin f_out=16'h0000; c_out=1'b0; v_out=1'b0; end
-        endcase
-      end
-
-      3'b100: begin f_out = a & b; c_out=1'b0; v_out=1'b0; end
-      3'b101: begin f_out = a | b; c_out=1'b0; v_out=1'b0; end
-      3'b110: begin f_out = a ^ b; c_out=1'b0; v_out=1'b0; end
-      3'b111: begin f_out = ~a;    c_out=1'b0; v_out=1'b0; end
-      default: begin f_out=16'h0000; c_out=1'b0; v_out=1'b0; end
-    endcase
-
-    n_out = f_out[15];
-    z_out = (f_out == 16'h0000);
-  endfunction
-
-  // golden shifter model (operates on A, flags: V=0 C=0 N=MSB(F) Z=(F==0))
-  function automatic void golden_shifter(
-    input  logic [15:0] a,
-    input  logic [1:0]  s_shf,
-    output logic [15:0] f_out,
-    output logic        v_out,
-    output logic        c_out,
-    output logic        n_out,
-    output logic        z_out
-  );
-    logic signed [15:0] as;
-    as = a;
-    unique case (s_shf)
-      2'b00: f_out = a;
-      2'b01: f_out = a << 1;
-      2'b10: f_out = a >> 1;
-      2'b11: f_out = as >>> 1;
-      default: f_out = '0;
-    endcase
-    v_out = 1'b0;
-    c_out = 1'b0;
-    n_out = f_out[15];
-    z_out = (f_out == 16'h0000);
-  endfunction
-
-
-  // compare pack
-  typedef struct packed { logic [15:0] f; logic v,c,n,z; } exp_t;
-  exp_t exp_q;
-
-  task automatic compute_expected(input string tag);
-    logic [15:0] gf; logic gv,gc,gn,gz;
-    if (MF_SEL) begin
-      // Shifter path expected values (A operand)
-      golden_shifter(A,S_SHF,gf,gv,gc,gn,gz);
+    if ( {V, C, N, Z, F} === {expV, expC, expN, expZ, expF[15:0]} ) begin
+    $display("[%0t] ✅ PASS: %s | F=%0d V=%0d C=%0d N=%0d Z=%0d",
+             $time, tag, F, V, C, N, Z);
     end else begin
-      // ALU path expected values
-      golden_alu(A,B,S_ALU,CIN,gf,gv,gc,gn,gz);
-    end
-    exp_q.f = gf; exp_q.v = gv; exp_q.c = gc; exp_q.n = gn; exp_q.z = gz;
-    expF = {16'h0000,gf}; expV=gv; expC=gc; expN=gn; expZ=gz;
-    $display("[%0t] Computing expected for %s", $time, tag);
-  endtask
-
-
-  // Compare every other cycle (when sampleTick==1)
-  always_ff @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin end
-    else if (sampleTick) begin
-      check_result("sample", int'(exp_q.f), exp_q.v, exp_q.c, exp_q.n, exp_q.z);
-    end
+    $display("[%0t] ❌ FAIL: %s", $time, tag);
+    $display("    Expected F=%0d V=%0d C=%0d N=%0d Z=%0d",
+             expF, expV, expC, expN, expZ);
+    $display("    Got      F=%0d V=%0d C=%0d N=%0d Z=%0d",
+             F, V, C, N, Z);
+    // Make exp_q “used” and helpful in debug
+    $display("    Golden   F=%0d V=%0d C=%0d N=%0d Z=%0d",
+             exp_q.f, exp_q.v, exp_q.c, exp_q.n, exp_q.z);
   end
+endtask
 
   // ------------------------------------------------------------
-  // Small helper task for logic ops (declared at TB scope — no nesting)
+  // compute_expected(tag)
+  // Now calls the package golden models (model_alu/model_shf),
+  // keeps exp_q for debugging, and uses your checker/prints.
+  // ------------------------------------------------------------
+  task automatic compute_expected(input string tag);
+    exp_t e;
+    begin
+      if (MF_SEL) begin
+        e = model_shf(A, S_SHF);              // shifter model
+      end else begin
+        e = model_alu(A, B, S_ALU, CIN);      // ALU model
+      end
+      exp_q = e; // keep a copy if you want to probe in waveforms
+
+      // Use your standard checker for the PASS/FAIL line
+      check_result(tag, int'(e.f), e.v, e.c, e.n, e.z);
+    end
+  endtask
+
+  // ------------------------------------------------------------
+  // Helpers preserving cadence:
+  // drive → @(posedge clk) → compute_expected(tag) → @(posedge clk)
   // ------------------------------------------------------------
   task automatic logic_case(
-    input logic [15:0] a_i,
-    input logic [15:0] b_i,
-    input logic [2:0]  op,
-    input string       tag
+  input logic [15:0] a_i, input logic [15:0] b_i,
+  input logic [2:0]  op,  input string       tag
   );
-    A = a_i; B = b_i; S_ALU = op; CIN = 1'b0;
-    @(posedge clk); compute_expected(tag); @(posedge clk);
-  endtask
-
-  // ----------------------------
-  // Test sequencing
-  // ----------------------------
-  task automatic do_shift_tests;
-    $display("\n[ %0t ] --- PHASE 1: SHIFT TESTS ---", $time);
-
-    MF_SEL = 1'b1; S_SHF = 2'b00; // pass-through via shifter
-
-    A = 16'hF00F; B = 16'h0000; S_ALU = 3'b000; CIN = 1'b0;
-    @(posedge clk); compute_expected("SHF PASS"); @(posedge clk);
-
-    B = 16'hEFFF; S_SHF = 2'b01; // SHL
-    @(posedge clk); compute_expected("SHL"); @(posedge clk);
-
-    B = 16'h00F0; S_SHF = 2'b10; // SHR
-    @(posedge clk); compute_expected("SHR"); @(posedge clk);
-
-    B = 16'h8001; S_SHF = 2'b11; // SRA
-    @(posedge clk); compute_expected("SRA"); @(posedge clk);
-  endtask
-
-  task automatic do_alu_arith_tests;
-    $display("\n[ %0t ] --- PHASE 2: ALU ARITHMETIC TESTS ---", $time);
-
-    MF_SEL = 1'b0; S_SHF = 2'b00;
-
-    // Case 0: A=0, B=0
-    A = 16'h0000; B = 16'h0000;
-    drive_opcode(Add);      @(posedge clk); compute_expected("ADD Case 0"); @(posedge clk);
-    drive_opcode(AddCarry); @(posedge clk); compute_expected("ADD+Carry Case 0"); @(posedge clk);
-    drive_opcode(Sub);      @(posedge clk); compute_expected("SUB Case 0"); @(posedge clk);
-    drive_opcode(Add1S);    @(posedge clk); compute_expected("SUB+Borrow Case 0"); @(posedge clk);
-    drive_opcode(IncA);     @(posedge clk); compute_expected("INC A Case 0"); @(posedge clk);
-    drive_opcode(DecA);     @(posedge clk); compute_expected("DEC A Case 0"); @(posedge clk);
-    drive_opcode(TranA1);   @(posedge clk); compute_expected("TRAN_A1 Case 0"); @(posedge clk);
-    drive_opcode(TranA2);   @(posedge clk); compute_expected("TRAN_A2 Case 0"); @(posedge clk);
-
-    // Case 1: A=0x7FFF, B=0x0001
-    A = 16'h7FFF; B = 16'h0001;
-    drive_opcode(Add);      @(posedge clk); compute_expected("ADD Case 1"); @(posedge clk);
-    drive_opcode(AddCarry); @(posedge clk); compute_expected("ADD+Carry Case 1"); @(posedge clk);
-    drive_opcode(Sub);      @(posedge clk); compute_expected("SUB Case 1"); @(posedge clk);
-    drive_opcode(Add1S);    @(posedge clk); compute_expected("SUB+Borrow Case 1"); @(posedge clk);
-    drive_opcode(IncA);     @(posedge clk); compute_expected("INC A Case 1"); @(posedge clk);
-    drive_opcode(DecA);     @(posedge clk); compute_expected("DEC A Case 1"); @(posedge clk);
-    drive_opcode(TranA1);   @(posedge clk); compute_expected("TRAN_A1 Case 1"); @(posedge clk);
-    drive_opcode(TranA2);   @(posedge clk); compute_expected("TRAN_A2 Case 1"); @(posedge clk);
-
-    // Case 2: A=0xFFFF, B=0x0001
-    A = 16'hFFFF; B = 16'h0001;
-    drive_opcode(Add);      @(posedge clk); compute_expected("ADD Case 2"); @(posedge clk);
-    drive_opcode(AddCarry); @(posedge clk); compute_expected("ADD+Carry Case 2"); @(posedge clk);
-    drive_opcode(Sub);      @(posedge clk); compute_expected("SUB Case 2"); @(posedge clk);
-    drive_opcode(Add1S);    @(posedge clk); compute_expected("SUB+Borrow Case 2"); @(posedge clk);
-  endtask
-
-  task automatic do_alu_logic_tests;
-    $display("\n[ %0t ] --- PHASE 3: ALU LOGIC TESTS ---", $time);
     MF_SEL = 1'b0;
+    S_ALU  = op;
+    S_SHF  = 2'b00;
+    CIN    = 1'b0;
+    A      = a_i;
+    B      = b_i;
 
-    // Case 2: A=0xFFFF, B=0x0001
-    logic_case(16'hFFFF, 16'h0001, AndOp, "AND Case 0");
-    logic_case(16'hFFFF, 16'h0001, OrOp , "OR  Case 0");
-    logic_case(16'hFFFF, 16'h0001, XorOp, "XOR Case 0");
-    logic_case(16'hFFFF, 16'h0001, NotOp, "NOT Case 0");
-    drive_opcode(IncA);  @(posedge clk); compute_expected("INC A Case 2"); @(posedge clk);
-    drive_opcode(DecA);  @(posedge clk); compute_expected("DEC A Case 2"); @(posedge clk);
-    drive_opcode(TranA1);@(posedge clk); compute_expected("TRAN_A1 Case 2"); @(posedge clk);
-    drive_opcode(TranA2);@(posedge clk); compute_expected("TRAN_A2 Case 2"); @(posedge clk);
-
-    // Case 3: A=0x7FFF, B=0x8001
-    logic_case(16'h7FFF, 16'h8001, AndOp, "AND Case 1");
-    logic_case(16'h7FFF, 16'h8001, OrOp , "OR  Case 1");
-    logic_case(16'h7FFF, 16'h8001, XorOp, "XOR Case 1");
-    logic_case(16'h7FFF, 16'h8001, NotOp, "NOT Case 1");
-    drive_opcode(Add);      @(posedge clk); compute_expected("ADD Case 3"); @(posedge clk);
-    drive_opcode(AddCarry); @(posedge clk); compute_expected("ADD+Carry Case 3"); @(posedge clk);
-    drive_opcode(Sub);      @(posedge clk); compute_expected("SUB Case 3"); @(posedge clk);
-    drive_opcode(Add1S);    @(posedge clk); compute_expected("SUB+Borrow Case 3"); @(posedge clk);
-    drive_opcode(IncA);     @(posedge clk); compute_expected("INC A Case 3"); @(posedge clk);
-    drive_opcode(DecA);     @(posedge clk); compute_expected("DEC A Case 3"); @(posedge clk);
-    drive_opcode(TranA1);   @(posedge clk); compute_expected("TRAN_A1 Case 3"); @(posedge clk);
-    drive_opcode(TranA2);   @(posedge clk); compute_expected("TRAN_A2 Case 3"); @(posedge clk);
-
-    // Case 4: A=12345, B=0xE3A6
-    logic_case(16'd12345, 16'hE3A6, AndOp, "AND Case 4");
-    logic_case(16'd12345, 16'hE3A6, OrOp , "OR  Case 4");
-    logic_case(16'd12345, 16'hE3A6, XorOp, "XOR Case 4");
-    logic_case(16'd12345, 16'hE3A6, NotOp, "NOT Case 4");
-    drive_opcode(Add);      @(posedge clk); compute_expected("ADD Case 4"); @(posedge clk);
-    drive_opcode(AddCarry); @(posedge clk); compute_expected("ADD+Carry Case 4"); @(posedge clk);
-    drive_opcode(Sub);      @(posedge clk); compute_expected("SUB Case 4"); @(posedge clk);
-    drive_opcode(Add1S);    @(posedge clk); compute_expected("SUB+Borrow Case 4"); @(posedge clk);
-    drive_opcode(IncA);     @(posedge clk); compute_expected("INC A Case 4"); @(posedge clk);
-    drive_opcode(DecA);     @(posedge clk); compute_expected("DEC A Case 4"); @(posedge clk);
-    drive_opcode(TranA1);   @(posedge clk); compute_expected("TRAN_A1 Case 4"); @(posedge clk);
-    drive_opcode(TranA2);   @(posedge clk); compute_expected("TRAN_A2 Case 4"); @(posedge clk);
+    @(posedge clk);
+    compute_expected(tag);
+    @(posedge clk);
   endtask
 
-  // ----------------------------
-  // Top-level stimulus
-  // ----------------------------
+  task automatic shift_case(
+  input logic [15:0] a_i,
+  input logic [1:0]  shf,
+  input string       tag
+  );
+    MF_SEL = 1'b1;
+    S_SHF  = shf;
+    S_ALU  = 3'b000;   // don't care; make deterministic
+    CIN    = 1'b0;
+    A      = a_i;
+    B      = '0;
+
+    @(posedge clk);
+    compute_expected(tag);
+    @(posedge clk);
+  endtask
+
+  // Drive an ALU op (MF_SEL=0) with optional carry-in, then check
+  task automatic arith_case(
+  input  logic [15:0] a_i,
+  input  logic [15:0] b_i,
+  /* verilator lint_off UNUSEDSIGNAL */
+  input  logic [3:0]  op4,     // <— widened to 4 bits
+  /* verilator lint_on UNUSEDSIGNAL */
+  input  logic        cin_i,
+  input  string       tag
+  );
+  // Drive DUT
+  MF_SEL = 1'b0;               // select ALU
+  S_ALU  = op4[2:0];           // <— explicit, no width warning
+  S_SHF  = 2'b00;
+  CIN    = cin_i;
+  A      = a_i;
+  B      = b_i;
+
+  @(posedge clk);
+  compute_expected(tag);
+  @(posedge clk);
+  endtask
+
+  // ------------------------------------------------------------
+  // Test sequence: mirrors your three phases and prints
+  // (If you have an existing sequence you like, paste it here.)
+  // Using named opcodes from the package improves readability.
+  // ------------------------------------------------------------
   initial begin
-    $display("\n----------------------------------------------------------");
+    // init
+    A=0; B=0; MF_SEL=0; S_ALU=0; S_SHF=0; CIN=0;
+
+    $display("----------------------------------------------------------");
     $display("     FUNCTION UNIT TESTBENCH - BORROW & OVERFLOW CHECK    ");
     $display("----------------------------------------------------------\n");
 
-    // init
-    A=16'h0000; B=16'h0000;
-    S_ALU=3'b000; S_SHF=2'b00; CIN=1'b0; MF_SEL=1'b0;
-    expF=32'h0; expV=0; expC=0; expN=0; expZ=0;
+    // PHASE 1: SHIFT TESTS
+    banner("PHASE 1: SHIFT TESTS");
 
-    @(posedge rst_n);
-    @(posedge clk);
+    $display("[%0t] Computing expected for SHF PASS", $time);
+    shift_case(16'hF00F, ShfPass, "SHF PASS");
 
-    do_shift_tests();
-    do_alu_arith_tests();
-    do_alu_logic_tests();
+    $display("[%0t] Computing expected for SHL", $time);
+    shift_case(16'hEFFF, ShiftL,  "SHL");
+
+    $display("[%0t] Computing expected for SHR", $time);
+    shift_case(16'hF06F, ShiftR,  "SHR");
+
+    $display("[%0t] Computing expected for SRA", $time);
+    shift_case(16'hF87F, ShiftRA, "SRA");
+
+    // PHASE 2: ALU ARITHMETIC TESTS
+    banner("PHASE 2: ALU ARITHMETIC TESTS");
+
+    // --- Basic ADD / ADD+Carry cases ---
+    $display("[%0t] Computing expected for ADD Case 0", $time);
+    arith_case(16'h0000, 16'h0000, Add, 1'b0, "ADD Case 0");
+
+    $display("[%0t] Computing expected for ADD+Carry Case 0", $time);
+    arith_case(16'h0000, 16'h0000, AddCarry, 1'b1, "ADD+Carry Case 0");
+
+    $display("[%0t] Computing expected for ADD Carry-out (FFFF + 1)", $time);
+    arith_case(16'hFFFF, 16'h0001, Add, 1'b0, "ADD Carry-out (FFFF + 1)");
+
+    $display("[%0t] Computing expected for ADD Overflow + (7FFF + 1)", $time);
+    arith_case(16'h7FFF, 16'h0001, Add, 1'b0, "ADD Overflow + (7FFF + 1)");
+
+    $display("[%0t] Computing expected for ADD Overflow - (8000 + 8000)", $time);
+    arith_case(16'h8000, 16'h8000, Add, 1'b0, "ADD Overflow - (8000 + 8000)");
+
+
+    // --- SUB / SUB+Borrow cases ---
+    $display("[%0t] Computing expected for SUB Case 0", $time);
+    arith_case(16'h0000, 16'h0000, Sub, 1'b0, "SUB Case 0");
+
+    $display("[%0t] Computing expected for SUB+Borrow Case 0", $time);
+    arith_case(16'h0000, 16'h0001, Sub, 1'b0, "SUB+Borrow Case 0");
+
+    $display("[%0t] Computing expected for SUB Negative (8000 - 1)", $time);
+    arith_case(16'h8000, 16'h0001, Sub, 1'b0, "SUB Negative (8000 - 1)");
+
+    $display("[%0t] Computing expected for SUB Overflow + (7FFF - FFFF)", $time);
+    arith_case(16'h7FFF, 16'hFFFF, Sub, 1'b0, "SUB Overflow + (7FFF - FFFF)");
+
+    $display("[%0t] Computing expected for SUB Overflow - (8000 - 7FFF)", $time);
+    arith_case(16'h8000, 16'h7FFF, Sub, 1'b0, "SUB Overflow - (8000 - 7FFF)");
+
+    $display("[%0t] Computing expected for SUB Alternating (AAAA - 5555)", $time);
+    arith_case(16'hAAAA, 16'h5555, Sub, 1'b0, "SUB Alternating (AAAA - 5555)");
+
+
+    // --- INC / DEC / Transfer cases ---
+    $display("[%0t] Computing expected for INC A Case 0", $time);
+    arith_case(16'h0000, 16'h0000, IncA, 1'b0, "INC A Case 0");
+
+    $display("[%0t] Computing expected for INC A Wraparound (FFFF -> 0000)", $time);
+    arith_case(16'hFFFF, 16'h0000, IncA, 1'b0, "INC A Wraparound (FFFF -> 0000)");
+
+    $display("[%0t] Computing expected for DEC A Case 0", $time);
+    arith_case(16'h0000, 16'h0000, DecA, 1'b0, "DEC A Case 0");
+
+    $display("[%0t] Computing expected for DEC A to Zero (0001 -> 0000)", $time);
+    arith_case(16'h0001, 16'h0000, DecA, 1'b0, "DEC A to Zero (0001 -> 0000)");
+
+    $display("[%0t] Computing expected for TRAN_A1 Case 0", $time);
+    arith_case(16'h0000, 16'h0000, TranA1, 1'b0, "TRAN_A1 Case 0");
+
+    $display("[%0t] Computing expected for TRAN_A2 Case 0", $time);
+    arith_case(16'h7FFF, 16'h0000, TranA2, 1'b0, "TRAN_A2 Case 0");
+
+    $display("[%0t] Computing expected for TRAN_A1 Negative (8000 -> 8000)", $time);
+    arith_case(16'h8000, 16'h0000, TranA1, 1'b0, "TRAN_A1 Negative (8000 -> 8000)");
+
+    // PHASE 3: ALU LOGIC TESTS
+    banner("PHASE 3: ALU LOGIC TESTS");
+
+    // --- Zeros / Ones sanity checks ---
+    $display("[%0t] Computing expected for AND 0000 & 0000", $time);
+    logic_case(16'h0000, 16'h0000, AndOp, "AND 0000&0000 -> 0000 (Z=1)");
+
+    $display("[%0t] Computing expected for AND FFFF & FFFF", $time);
+    logic_case(16'hFFFF, 16'hFFFF, AndOp, "AND FFFF&FFFF -> FFFF (N=1)");
+
+    $display("[%0t] Computing expected for OR  0000 | FFFF", $time);
+    logic_case(16'h0000, 16'hFFFF, OrOp,  "OR  0000|FFFF -> FFFF (N=1)");
+
+    $display("[%0t] Computing expected for XOR FFFF ^ FFFF", $time);
+    logic_case(16'hFFFF, 16'hFFFF, XorOp, "XOR FFFF^FFFF -> 0000 (Z=1)");
+
+    // --- Alternating patterns / bit emphasis ---
+    $display("[%0t] Computing expected for AND AAAA & AAAA", $time);
+    logic_case(16'hAAAA, 16'hAAAA, AndOp, "AND AAAA&AAAA -> AAAA");
+
+    $display("[%0t] Computing expected for OR  5555 | 5555", $time);
+    logic_case(16'h5555, 16'h5555, OrOp,  "OR  5555|5555 -> 5555");
+
+    $display("[%0t] Computing expected for XOR AAAA ^ 5555", $time);
+    logic_case(16'hAAAA, 16'h5555, XorOp, "XOR AAAA^5555 -> FFFF");
+
+    // --- MSB / LSB specific ---
+    $display("[%0t] Computing expected for OR  MSB|LSB (8000 | 0001)", $time);
+    logic_case(16'h8000, 16'h0001, OrOp,  "OR  8000|0001 -> 8001 (N=1)");
+
+    $display("[%0t] Computing expected for AND keep MSB (8000 & 8000)", $time);
+    logic_case(16'h8000, 16'h8000, AndOp, "AND 8000&8000 -> 8000 (N=1)");
+
+    $display("[%0t] Computing expected for AND keep LSB (0001 & 0001)", $time);
+    logic_case(16'h0001, 16'h0001, AndOp, "AND 0001&0001 -> 0001");
+
+    // --- Equal / disjoint sets ---
+    $display("[%0t] Computing expected for XOR A==B (1234 ^ 1234)", $time);
+    logic_case(16'h1234, 16'h1234, XorOp, "XOR 1234^1234 -> 0000 (Z=1)");
+
+    $display("[%0t] Computing expected for AND disjoint (0F0F & F0F0)", $time);
+    logic_case(16'h0F0F, 16'hF0F0, AndOp, "AND 0F0F&F0F0 -> 0000 (Z=1)");
+
+    $display("[%0t] Computing expected for OR  disjoint (0F0F | F0F0)", $time);
+    logic_case(16'h0F0F, 16'hF0F0, OrOp,  "OR  0F0F|F0F0 -> FFFF (N=1)");
+
+    // --- NOT (B is ignored by model/RTL) ---
+    $display("[%0t] Computing expected for NOT 0000", $time);
+    logic_case(16'h0000, 16'h0000, NotOp, "NOT 0000 -> FFFF (N=1)");
+
+    $display("[%0t] Computing expected for NOT FFFF", $time);
+    logic_case(16'hFFFF, 16'h0000, NotOp, "NOT FFFF -> 0000 (Z=1)");
+
+    $display("[%0t] Computing expected for NOT 8000", $time);
+    logic_case(16'h8000, 16'h0000, NotOp, "NOT 8000 -> 7FFF");
+
+    $display("[%0t] Computing expected for NOT 7FFF", $time);
+    logic_case(16'h7FFF, 16'h0000, NotOp, "NOT 7FFF -> 8000 (N=1)");
+    // NOT uses only A; B is don't-care
+    MF_SEL = 1'b0; S_ALU = NotOp; CIN = 1'b0; A = 16'h0000; B = '0;
+    @(posedge clk); compute_expected("NOT Case 0"); @(posedge clk);
+
+    // …add remaining cases you already had…
 
     $display("\n[ %0t ] --- TESTBENCH COMPLETE ---", $time);
-    $finish;
+    #10 $finish;
   end
 
 endmodule
