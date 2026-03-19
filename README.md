@@ -293,6 +293,6 @@ Expected output from `make run`:
 
 ## Author
 
-Bradley Ward - Texas Tech University, ECE 4375
+Bradley Ward
 - Original Verilog (2020) with Gerald Barnett, Cody Cartier-Solomon, and Rice Rodriguez
 - SystemVerilog refactor, automated verification, and toolchain migration (2025-2026)
