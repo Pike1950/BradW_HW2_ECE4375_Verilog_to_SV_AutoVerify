@@ -1,0 +1,92 @@
+[*]
+[*] GTKWave Save File — Function_Unit_TB
+[*] Auto-generated signal layout for debug
+[*]
+[dumpfile] "Function_Unit_TB.vcd"
+[timestart] 0
+[size] 1400 800
+[pos] -1 -1
+[treeopen] TOP.
+[treeopen] TOP.Function_Unit_TB.
+[treeopen] TOP.Function_Unit_TB.dut.
+[treeopen] TOP.Function_Unit_TB.dut.u_alu.
+
+[*] ──────────────────────────────────
+[*] CLOCK
+[*] ──────────────────────────────────
+@28
+TOP.Function_Unit_TB.clk
+
+[*] ──────────────────────────────────
+[*] CONTROL SIGNALS
+[*] ──────────────────────────────────
+@28
+TOP.Function_Unit_TB.MF_SEL
+@22
+TOP.Function_Unit_TB.S_ALU[2:0]
+TOP.Function_Unit_TB.S_SHF[1:0]
+@28
+TOP.Function_Unit_TB.CIN
+
+[*] ──────────────────────────────────
+[*] DATA INPUTS
+[*] ──────────────────────────────────
+@22
+TOP.Function_Unit_TB.A[15:0]
+TOP.Function_Unit_TB.B[15:0]
+
+[*] ──────────────────────────────────
+[*] FUNCTION UNIT OUTPUT
+[*] ──────────────────────────────────
+@22
+TOP.Function_Unit_TB.F[15:0]
+
+[*] ──────────────────────────────────
+[*] FLAGS (V C N Z)
+[*] ──────────────────────────────────
+@28
+TOP.Function_Unit_TB.V
+TOP.Function_Unit_TB.C
+TOP.Function_Unit_TB.N
+TOP.Function_Unit_TB.Z
+
+[*] ──────────────────────────────────
+[*] ALU INTERNALS
+[*] ──────────────────────────────────
+@22
+TOP.Function_Unit_TB.dut.u_alu.ALU_SEL[3:0]
+TOP.Function_Unit_TB.dut.u_alu.result_ext[16:0]
+TOP.Function_Unit_TB.dut.u_alu.G[15:0]
+@28
+TOP.Function_Unit_TB.dut.u_alu.C_temp
+TOP.Function_Unit_TB.dut.u_alu.V_next
+TOP.Function_Unit_TB.dut.u_alu.sa
+TOP.Function_Unit_TB.dut.u_alu.sb
+TOP.Function_Unit_TB.dut.u_alu.sg
+
+[*] ──────────────────────────────────
+[*] ALU EXTENDED OPERANDS
+[*] ──────────────────────────────────
+@22
+TOP.Function_Unit_TB.dut.u_alu.A1[16:0]
+TOP.Function_Unit_TB.dut.u_alu.B1[16:0]
+TOP.Function_Unit_TB.dut.u_alu.B1_INV[16:0]
+TOP.Function_Unit_TB.dut.u_alu.CIN1[16:0]
+
+[*] ──────────────────────────────────
+[*] SHIFTER
+[*] ──────────────────────────────────
+@22
+TOP.Function_Unit_TB.dut.H[15:0]
+@28
+TOP.Function_Unit_TB.dut.N_s
+TOP.Function_Unit_TB.dut.Z_s
+
+[*] ──────────────────────────────────
+[*] GOLDEN MODEL (expected)
+[*] ──────────────────────────────────
+@22
+TOP.Function_Unit_TB.exp_q[19:0]
+
+[pattern_trace] 1
+[pattern_trace] 0

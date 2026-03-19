@@ -1,0 +1,30 @@
+# VS Code
+.vscode/
+*.code-workspace
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Verilog / Verilator
+obj_dir/
+*.vcd
+*.fst
+*.vvp
+*.vcd.recoder
+
+# Build outputs
+build/
+dist/
+out/
+*.o
+*.exe
+*.log
+*.dmp
+*.trace
+
+# Python (if any tooling)
+__pycache__/
+*.pyc
+.venv/
+venv/

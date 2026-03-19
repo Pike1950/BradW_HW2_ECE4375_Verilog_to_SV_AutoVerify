@@ -1,0 +1,107 @@
+[*]
+[*] GTKWave Save File — Function_Unit_TB (Overview, 4K)
+[*]
+[dumpfile] "Function_Unit_TB.vcd"
+[timestart] 0
+[size] 2560 1440
+[pos] -1 -1
+*-15.000000
+[sst_width] 280
+[signals_width] 220
+[treeopen] TOP.
+[treeopen] TOP.Function_Unit_TB.
+[treeopen] TOP.Function_Unit_TB.dut.
+[treeopen] TOP.Function_Unit_TB.dut.u_alu.
+
+[*] ──── CLOCK ────
+@29
+TOP.Function_Unit_TB.clk
+@200
+-
+
+[*] ──── CONTROL ────
+@29
+TOP.Function_Unit_TB.MF_SEL
+@29
+TOP.Function_Unit_TB.CIN
+@23
+TOP.Function_Unit_TB.S_ALU[2:0]
+@23
+TOP.Function_Unit_TB.S_SHF[1:0]
+@200
+-
+
+[*] ──── DATA INPUTS ────
+@23
+TOP.Function_Unit_TB.A[15:0]
+@23
+TOP.Function_Unit_TB.B[15:0]
+@200
+-
+
+[*] ──── FUNCTION UNIT OUTPUT ────
+@23
+TOP.Function_Unit_TB.F[15:0]
+@200
+-
+
+[*] ──── FLAGS ────
+@29
+TOP.Function_Unit_TB.V
+@29
+TOP.Function_Unit_TB.C
+@29
+TOP.Function_Unit_TB.N
+@29
+TOP.Function_Unit_TB.Z
+@200
+-
+
+[*] ──── ALU INTERNALS ────
+@23
+TOP.Function_Unit_TB.dut.u_alu.ALU_SEL[3:0]
+@23
+TOP.Function_Unit_TB.dut.u_alu.result_ext[16:0]
+@23
+TOP.Function_Unit_TB.dut.u_alu.G[15:0]
+@29
+TOP.Function_Unit_TB.dut.u_alu.C_temp
+@29
+TOP.Function_Unit_TB.dut.u_alu.V_next
+@29
+TOP.Function_Unit_TB.dut.u_alu.sa
+@29
+TOP.Function_Unit_TB.dut.u_alu.sb
+@29
+TOP.Function_Unit_TB.dut.u_alu.sg
+@200
+-
+
+[*] ──── ALU EXTENDED OPERANDS ────
+@23
+TOP.Function_Unit_TB.dut.u_alu.A1[16:0]
+@23
+TOP.Function_Unit_TB.dut.u_alu.B1[16:0]
+@23
+TOP.Function_Unit_TB.dut.u_alu.B1_INV[16:0]
+@23
+TOP.Function_Unit_TB.dut.u_alu.CIN1[16:0]
+@200
+-
+
+[*] ──── SHIFTER ────
+@23
+TOP.Function_Unit_TB.dut.H[15:0]
+@29
+TOP.Function_Unit_TB.dut.N_s
+@29
+TOP.Function_Unit_TB.dut.Z_s
+@200
+-
+
+[*] ──── GOLDEN MODEL ────
+@23
+TOP.Function_Unit_TB.exp_q[19:0]
+
+[pattern_trace] 1
+[pattern_trace] 0

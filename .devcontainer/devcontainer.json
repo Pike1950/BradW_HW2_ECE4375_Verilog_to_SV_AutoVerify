@@ -1,0 +1,21 @@
+{
+  "name": "Verilator + GTKWave",
+  "build": {
+    "dockerfile": "../Dockerfile"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "mshr-h.veriloghdl",
+        "eirikpre.systemverilog",
+        "wavetrace.wavetrace"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  "forwardPorts": [],
+  "postCreateCommand": "verilator --version",
+  "remoteUser": "root"
+}
