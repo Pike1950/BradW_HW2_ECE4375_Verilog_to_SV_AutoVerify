@@ -1,6 +1,13 @@
-# Function Unit - 16-Bit ALU and Shifter in SystemVerilog
+# Function Unit — 16-Bit ALU and Shifter in SystemVerilog
 
 A parameterized 16-bit Function Unit based on the datapath described in Mano and Kime's *Computer System Architecture* (Chapter 7, Figures 7-9, 7-10, 7-16). Originally written in Verilog for ECE 4375 at Texas Tech University, then refactored to SystemVerilog with a self-checking testbench, golden reference model, and automated verification via Verilator and GTKWave.
+
+## What This Demonstrates
+
+- **Verilog to SystemVerilog migration:** Replaced implicit wire/reg declarations with `logic`, converted `always @(*)` to `always_comb`, introduced enumerated types for opcodes, and added `default_nettype none` guards.
+- **Self-checking verification:** The testbench automatically compares ALU outputs against expected results for all operations, reporting PASS/FAIL without manual waveform inspection.
+- **Flag verification:** Each test case validates all four status flags (Z, C, N, V) against golden reference values, covering carry propagation, signed overflow, and zero-detection edge cases.
+- **Verification foundation:** The self-checking testbench methodology developed here was applied to the full processor verification in the [32-bit Pipelined RISC CPU](https://github.com/Pike1950/BradW_ECE4375_RISC_Pipeline) project, where the same ALU architecture is used in the execute stage.
 
 ## Architecture
 
@@ -182,10 +189,10 @@ Add Ones Complement (3 tests):
 Increment and Decrement (6 tests):
 - INC from zero (basic operation)
 - INC wraparound: 0xFFFF + 1 = 0x0000 (C = 1)
-- INC overflow: 0x7FFF + 1 = 0x8000 (V = 1, the grader's specific concern)
+- INC overflow: 0x7FFF + 1 = 0x8000 (V = 1)
 - DEC from zero (wraps to 0xFFFF)
 - DEC to zero: 0x0001 - 1 = 0x0000 (Z = 1)
-- DEC overflow: 0x8000 - 1 = 0x7FFF (V = 1, the grader's specific concern)
+- DEC overflow: 0x8000 - 1 = 0x7FFF (V = 1)
 
 Transfer (3 tests):
 - Transfer zero (Z = 1)
@@ -284,6 +291,10 @@ Expected output from `make run`:
 **Per-opcode overflow**: Rather than a single overflow formula applied to all operations, V is computed with a dedicated case statement that applies the correct rule for each opcode. This prevents false positives on logic operations and handles the INC/DEC boundary cases without referencing the B operand.
 
 **Golden model in a package**: The reference model lives in `Function_Unit_pkg.sv` as pure functions that take explicit inputs and return a struct of expected outputs. This keeps the model completely decoupled from DUT signals, making it impossible for the model to accidentally read from the DUT and trivially pass.
+
+## Project Context
+
+This is the verification foundation for the larger [32-bit Pipelined RISC CPU](https://github.com/Pike1950/BradW_ECE4375_RISC_Pipeline) project. The same ALU architecture (extended to 32 bits with a different opcode set) is used in the execute stage of the pipelined processor, and the self-checking testbench methodology developed here was applied to the full processor verification. The original Verilog source for all ECE 4375 assignments is preserved in the [Microprocessor-Architecture-Code](https://github.com/Pike1950/Microprocessor-Architecture-Code) repository.
 
 ## References
 
